@@ -194,7 +194,7 @@ class Handler(BaseHTTPRequestHandler):
             if file.is_file():
                 self.send(file.read_bytes(), mime=mimetypes.guess_type(file.name)[0] or "application/octet-stream")
             else: self.send({"error":"Build expired. Generate again."},404)
-        elif path in ("/", "/index.html", "/style.css", "/app.js", "/viewer.js"):
+        elif path in ("/", "/index.html", "/style.css", "/app.js", "/viewer.js", "/backend.js", "/model.js"):
             file = ROOT / "web" / ("index.html" if path == "/" else path[1:])
             self.send(file.read_bytes(), mime=mimetypes.guess_type(file.name)[0] or "text/plain")
         else: self.send({"error":"Not found"},404)

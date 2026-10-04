@@ -1,0 +1,7 @@
+{
+  "name": "led-sign-generator",
+  "private": true,
+  "type": "module",
+  "scripts": {"build": "python3 scripts/build_pages.py", "test:wasm": "node tests/test_wasm.mjs"},
+  "dependencies": {"openscad-wasm": "0.0.4", "fflate": "0.8.2"}
+}

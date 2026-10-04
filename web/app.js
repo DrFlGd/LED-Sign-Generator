@@ -1,9 +1,11 @@
+import {transportFetch} from './backend.js';
 import {Viewer} from './viewer.js';
 const $=id=>document.getElementById(id),form=$('controls');
 let viewer=null,current=null,busy=false,defaults={},keys=[],revision=0,previewError='';
 try{viewer=new Viewer($('viewer'));}catch(e){previewError=e.message;}
+window.addEventListener('render-progress',e=>message(e.detail));
 const message=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
-async function api(path,data){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok){const e=await r.json();throw new Error(e.error||'Request failed');}return r;}
+async function api(path,data){const r=await transportFetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok){const e=await r.json();throw new Error(e.error||'Request failed');}return r;}
 function settings(){return Object.fromEntries(keys.map(k=>[k,typeof defaults[k]==='number'?Number(form.elements[k].value):form.elements[k].value]));}
 function refreshStyle(){ $('margin-field').hidden=form.elements.style.value!=='contour'; }
 function fill(p){for(const k of keys)form.elements[k].value=p[k];refreshStyle();}
@@ -18,7 +20,7 @@ form.addEventListener('submit',async e=>{
   try{
     const result=await (await api('/api/build',p)).json();
     if(version!==revision){message('Settings changed during rendering. Generate again to build your latest design.');$('badge').textContent='CHANGES NOT BUILT';return;}
-    if(viewer){const buffers=await Promise.all(['body','diffuser'].map(async part=>{const r=await fetch(`/build/${result.id}/${part}.stl`);if(!r.ok)throw new Error('Could not load preview mesh.');return r.arrayBuffer();}));
+    if(viewer){const buffers=await Promise.all(['body','diffuser'].map(async part=>{const r=await transportFetch(`/build/${result.id}/${part}.stl`);if(!r.ok)throw new Error('Could not load preview mesh.');return r.arrayBuffer();}));
       if(version!==revision){message('Settings changed during rendering. Generate again.');$('badge').textContent='CHANGES NOT BUILT';return;}
       viewer.setModel(buffers,result);$('empty').hidden=true;$('empty').style.display='none';
     }
@@ -30,7 +32,7 @@ form.addEventListener('submit',async e=>{
   }catch(e){message(e.message,true);$('badge').textContent='BUILD NEEDS ATTENTION';}
   finally{busy=false;$('generate').disabled=false;$('badge').classList.remove('busy');}
 });
-$('download').onclick=()=>{if(current){const a=document.createElement('a');a.href=`/build/${current.id}/print-kit.zip`;a.download='led-sign-print-kit.zip';a.click();}};
+$('download').onclick=async()=>{if(current){try{const r=await transportFetch(`/build/${current.id}/print-kit.zip`);if(!r.ok)throw new Error('Build expired. Generate again.');download(await r.arrayBuffer(),'led-sign-print-kit.zip','application/zip');}catch(e){message(e.message,true);}}};
 $('save').onclick=async()=>{try{const p=await(await api('/api/validate',settings())).json();download(JSON.stringify(project(p),null,2),'led-sign-project.json');}catch(e){message(e.message,true);}};
 $('scad').onclick=async()=>{try{download(await(await api('/api/scad',settings())).text(),'sign.scad','text/plain');}catch(e){message(e.message,true);}};
 $('open').onclick=()=>$('file').click();
@@ -39,10 +41,10 @@ for(const button of document.querySelectorAll('[data-view]'))button.onclick=()=>
 $('reset').onclick=()=>document.querySelector('[data-view="iso"]').click();
 for(const id of ['show-body','show-face','body-color','face-color','explode'])$(id).oninput=()=>{if(!viewer)return;Object.assign(viewer.options,{body:$('show-body').checked,face:$('show-face').checked,bodyColor:$('body-color').value,faceColor:$('face-color').value,explode:$('explode').checked});viewer.draw();};
 try{
- const r=await fetch('/api/config');if(!r.ok)throw new Error('Could not load app configuration.');const config=await r.json();defaults=config.defaults;keys=Object.keys(defaults);
+ const r=await transportFetch('/api/config');if(!r.ok)throw new Error('Could not load app configuration.');const config=await r.json();defaults=config.defaults;keys=Object.keys(defaults);
  for(const font of config.fonts){const o=document.createElement('option');o.value=font;o.textContent=font.replace(':style=',' · ');form.elements.font_name.append(o);}
  fill(defaults);
  try{const saved=localStorage.getItem('led-sign-project');if(saved){fill(await(await api('/api/validate',JSON.parse(saved))).json());message('Restored your last generated project. Generate to rebuild it.');}}catch{message('Your saved project could not be restored; using defaults.');}
  if(!config.openscad)message('Install OpenSCAD and add it to PATH to generate print files. You can still download the source.',true);
  else if(previewError)message(previewError,true);
-}catch(e){message(e.message+' Start the app with python server.py.',true);$('generate').disabled=true;}
+}catch(e){message(e.message+' Refresh the page and try again.',true);$('generate').disabled=true;}

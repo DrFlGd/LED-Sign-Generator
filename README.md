@@ -1,10 +1,20 @@
 # LED Sign Generator
 
-A local web workshop for printable LED lightboxes, with **OpenSCAD as the geometry authority**. Type a short sign, tune its dimensions and fit, inspect the actual rendered STL meshes, then download a fabrication kit.
+A web workshop for printable LED lightboxes, with **OpenSCAD as the geometry authority**. Type a short sign, tune its dimensions and fit, inspect the actual rendered STL meshes, then download a fabrication kit.
 
 This is the first working milestone in the selected order: text/fonts → sign styles → dimensions → diffuser → walls/fit → exports → assembly preview → saved projects. It is an original implementation of that workflow, not a copy of the reference site's code or assets.
 
-## Run
+## Hosted on GitHub Pages
+
+The hosted edition runs OpenSCAD WebAssembly in a background browser worker. No Python or OpenSCAD installation is required. Six DejaVu fonts are included; source, STL, SVG, fit coupons and project downloads are generated locally in your browser. The first build downloads the engine.
+
+Pushes to `main` run `.github/workflows/pages.yml`, test the WebAssembly renderer, and deploy `dist/` using GitHub Actions. In repository Settings → Pages, the source should be **GitHub Actions**.
+
+To reproduce the Pages build on Linux: install Node 22+, Python 3.10+ and `fonts-dejavu-core`, then run `npm ci`, `npm run build`, and `npm run test:wasm`. The build copies pinned dependencies and fonts into the site; runtime rendering does not rely on an external CDN.
+
+Browser and desktop OpenSCAD versions may produce slightly different text dimensions. Each preview and its print kit use the same rendered geometry; use the measured dimensions shown after rendering.
+
+## Run locally with desktop OpenSCAD
 
 Install **Python 3.10+** and **OpenSCAD 2021.01+** from [openscad.org](https://openscad.org/downloads.html). No pip, npm, or CDN dependencies are needed. The browser needs WebGL for the preview; exports work without it.
 
@@ -14,7 +24,7 @@ cd LED-Sign-Generator
 python server.py
 ```
 
-Open **http://127.0.0.1:8000**. On systems where Python is called `python3`, use that command instead. This is a local app, not a static GitHub Pages site: OpenSCAD runs on your computer behind the browser.
+Open **http://127.0.0.1:8000**. On systems where Python is called `python3`, use that command instead. This optional local mode uses the desktop OpenSCAD executable behind the browser. The hosted Pages edition uses WebAssembly instead.
 
 OpenSCAD must be on PATH, or set `OPENSCAD` to its executable:
 

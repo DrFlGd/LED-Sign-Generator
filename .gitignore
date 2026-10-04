@@ -4,3 +4,5 @@ __pycache__/
 .env
 .test-output/
 led-sign-*/
+node_modules/
+dist/
