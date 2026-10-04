@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LED Sign Generator</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<header><a class="brand" href="/" aria-label="LED Sign Generator home"><span class="logo">L<span>▰</span></span><span>LED SIGN<br><b>GENERATOR</b></span></a><span class="tag">YOUR WORDS. IN A NEW LIGHT.</span><nav><button id="open">Open project</button><button id="save">Save project ↓</button></nav><input id="file" type="file" accept=".json,application/json" hidden></header>
+<main>
+<aside>
+<div class="eyebrow">WORKSHOP / 01</div><h1>Make it glow.</h1><p class="intro">From a few words to a lightbox you can make.</p>
+<form id="controls">
+<fieldset><legend><span>01</span> Design your sign</legend>
+<label>Text<input name="sign_text" maxlength="24" required placeholder="GLOW" autocomplete="off"></label>
+<label>Typeface<select name="font_name"></select></label><p class="hint">Fonts installed on the computer running OpenSCAD. Bold strokes work best.</p>
+<label>Sign style<select name="style"><option value="letters">Separate letters</option><option value="contour">Convex contour enclosure</option></select></label>
+<div class="pair"><label>Letter spacing<input name="spacing" type="number" min="0.7" max="2" step="0.05" required><small>multiplier</small></label><label id="margin-field">Contour margin<input name="margin" type="number" min="2" max="30" step="0.5" required><small>mm</small></label></div>
+</fieldset>
+<fieldset><legend><span>02</span> Set the dimensions</legend><div class="pair"><label>Artwork height<input name="height" type="number" min="20" max="300" step="1" required><small>mm</small></label><label>Total depth<input name="depth" type="number" min="8" max="150" step="1" required><small>mm</small></label></div><p class="hint">Height measures visible lettering. Contour margin adds to the finished size.</p></fieldset>
+<fieldset><legend><span>03</span> Dial in the fit</legend><div class="assembly">INSET FACE <span>●</span> SUPPORT LEDGE</div>
+<div class="pair"><label>Wall thickness<input name="wall" type="number" min="0.8" max="6" step="0.1" required><small>mm</small></label><label>Back thickness<input name="back" type="number" min="0.8" max="6" step="0.1" required><small>mm</small></label><label>Face thickness<input name="face" type="number" min="0.5" max="5" step="0.1" required><small>mm</small></label><label>Face clearance<input name="clearance" type="number" min="0" max="1" step="0.05" required><small>mm / side</small></label><label>Support ledge<input name="ledge" type="number" min="0.5" max="5" step="0.1" required><small>mm</small></label><label>Face recess<input name="recess" type="number" min="0" max="15" step="0.1" required><small>mm</small></label></div>
+<p class="hint">Print the included fit sample before the full sign.</p></fieldset>
+<button class="primary" id="generate" type="submit">Generate lightbox <span>↗</span></button>
+</form></aside>
+<section class="workspace">
+<div class="workspace-heading"><div><div class="eyebrow">THE WORKBENCH</div><h2 id="model-title">Your next bright idea.</h2></div><span id="badge" class="badge">READY TO BUILD</span></div>
+<div class="viewer-wrap"><div class="view-toolbar"><div class="segmented" aria-label="Camera"><button data-view="iso" class="active">3D</button><button data-view="front">Front</button><button data-view="rear">Rear</button></div><button id="reset">Reset view</button></div>
+<canvas id="viewer" aria-label="Interactive 3D preview of the generated body and diffuser. Drag to rotate, scroll to zoom." tabindex="0"></canvas>
+<div id="empty"><div class="outline-word">GLOW</div><p>Make something worth switching on.</p><span>Choose your text, then generate your lightbox.</span></div>
+<div class="viewer-footer"><span>mm · drag to rotate · scroll to zoom</span><label><input type="checkbox" id="explode"> Exploded assembly</label></div></div>
+<div class="dimensions"><div><span>FINISHED WIDTH</span><strong id="dim-x">— <small>mm</small></strong></div><div><span>FINISHED HEIGHT</span><strong id="dim-y">— <small>mm</small></strong></div><div><span>TOTAL DEPTH</span><strong id="dim-z">— <small>mm</small></strong></div></div>
+<div class="preview-controls"><label><input type="checkbox" id="show-body" checked> Body</label><input aria-label="Body preview color" id="body-color" type="color" value="#294650"><label><input type="checkbox" id="show-face" checked> Diffuser</label><input aria-label="Diffuser preview color" id="face-color" type="color" value="#ffe4a6"><span>Preview colors only</span></div>
+<p id="status" role="status" aria-live="polite">Your model will be rendered by OpenSCAD. First builds can take a minute.</p>
+<section class="export-card"><div><div class="eyebrow">FROM SCREEN TO WORKSHOP</div><h2>Ready for the real world.</h2><p>Body + diffuser STL, cutting SVG, fit samples,<br>editable OpenSCAD source and assembly notes.</p></div><div class="export-actions"><button id="download" class="primary" disabled>Download print kit ↓</button><button id="scad">Download OpenSCAD source</button></div></section>
+<details><summary>Before you print</summary><ul id="warnings"><li>Thin fonts and small details may leave too little room for LEDs.</li><li>Wire exits and mounting holes are not generated in this first version.</li><li>The face rests on a ledge; it is not a snap-lock.</li></ul></details>
+<footer>DESIGNED IN WORDS. BUILT IN MILLIMETERS. <span>OpenSCAD at the core.</span></footer>
+</section></main><script type="module" src="/app.js"></script>
+</body></html>

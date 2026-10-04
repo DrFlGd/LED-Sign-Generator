@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.test-output/
+led-sign-*/
