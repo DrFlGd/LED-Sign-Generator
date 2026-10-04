@@ -12,7 +12,7 @@ function render(source,fontFile,part){return new Promise((resolve,reject)=>{
  worker.postMessage({source,fontFile,part});
 });}
 const encoder=new TextEncoder();
-function notes(p,parts){return `LED SIGN GENERATOR — PRINT & ASSEMBLY\n\nText: ${p.sign_text}\nFont: ${p.font_name}\nBody: ${parts.body.size.join(' × ')} mm\nPer-side clearance: ${p.clearance} mm\nFace thickness: ${p.face} mm; recess: ${p.recess} mm\n\n1. Print fit_body.stl and fit_diffuser.stl first. Adjust clearance if needed.\n2. Print body.stl back-down and diffuser.stl flat; both export on Z=0. Split disconnected letters into objects in your slicer if needed.\n3. diffuser.svg is in mm with no kerf compensation. Verify scale in your cutting software and use the configured face thickness.\n4. Inspect narrow strokes, counters, islands and LED space in your slicer. Rendering success does not certify printability.\n5. Wire exits and mounting holes are not generated. Plan these before printing.\n6. Use suitable low-voltage LEDs and account for heat. Test illumination before fitting the face. The face rests on a ledge; it is not a snap-lock. Use suitable removable adhesive if needed.\n\nOpen project.json in the app to edit. sign.scad is standalone; install the same DejaVu font to regenerate it in desktop OpenSCAD.\n`;}
+function notes(p,parts){return `LED SIGN GENERATOR — PRINT & ASSEMBLY\n\nText: ${p.sign_text}\nFont: ${p.font_name}\nBody: ${parts.body.size.join(' × ')} mm\nPer-side clearance: ${p.clearance} mm\nFace thickness: ${p.face} mm; recess: ${p.recess} mm\n\nFor contour signs, import text_region.stl and border_region.stl together as parts of one object; they share coordinates and must not be separately arranged. Print them together as a multi-material face. diffuser.stl is the single-color fallback. The separate colored 3MF download preserves this grouping and includes color metadata; assign actual filaments in your slicer as needed.\n\n1. Print fit_body.stl and fit_diffuser.stl first. Adjust clearance if needed.\n2. Print body.stl back-down and diffuser.stl flat; both export on Z=0. Split disconnected letters into objects in your slicer if needed.\n3. diffuser.svg is in mm with no kerf compensation. Verify scale in your cutting software and use the configured face thickness.\n4. Inspect narrow strokes, counters, islands and LED space in your slicer. Rendering success does not certify printability.\n5. Wire exits and mounting holes are not generated. Plan these before printing.\n6. Use suitable low-voltage LEDs and account for heat. Test illumination before fitting the face. The face rests on a ledge; it is not a snap-lock. Use suitable removable adhesive if needed.\n\nOpen project.json in the app to edit. sign.scad is standalone; install the same DejaVu font to regenerate it in desktop OpenSCAD.\n`;}
 export async function transportFetch(path,options){
  if(!browserMode)return fetch(path,options);
  try{
@@ -26,8 +26,9 @@ export async function transportFetch(path,options){
   if(path!=='/api/build')throw new Error('Unknown operation.');
   const {zipSync}=await import('./vendor/fflate.js');
   const id=crypto.randomUUID().replaceAll('-',''),parts={},kit={};
-  for(const [i,part]of ['body','diffuser','fit_body','fit_diffuser','cutting'].entries()){
-   window.dispatchEvent(new CustomEvent('render-progress',{detail:`Rendering ${part.replaceAll('_',' ')} (${i+1}/5) in your browser…`}));
+  const renderParts=['body','diffuser','fit_body','fit_diffuser','cutting',...(p.style==='contour'?['text_region','border_region']:[])];
+  for(const [i,part]of renderParts.entries()){
+   window.dispatchEvent(new CustomEvent('render-progress',{detail:`Rendering ${part.replaceAll('_',' ')} (${i+1}/${renderParts.length}) in your browser…`}));
    const bytes=await render(source,c.fontFiles[p.font_name],part);
    const name=part==='cutting'?'diffuser.svg':part+'.stl';kit[name]=bytes;
    if(part!=='cutting')parts[part]=meshInfo(bytes);

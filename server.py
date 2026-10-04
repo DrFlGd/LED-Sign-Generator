@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULTS = dict(sign_text="GLOW", font_name="DejaVu Sans:style=Bold", height=80,
                 spacing=1.05, style="letters", margin=6, depth=30, wall=1.6,
-                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0)
+                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0, body_color="#294650", text_color="#ffe4a6", border_color="#294650")
 LIMITS = dict(height=(20,300), spacing=(0.7,2), margin=(2,30), depth=(8,150),
               wall=(0.8,6), back=(0.8,6), face=(0.5,5), clearance=(0,1),
               ledge=(0.5,5), recess=(0,15))
@@ -61,10 +61,15 @@ def validate(raw):
         raise ValueError("Choose an installed font. Install custom fonts on your computer, then restart.")
     if p["style"] not in ("letters", "contour"):
         raise ValueError("Choose separate letters or convex contour.")
+    for key in ("body_color", "text_color", "border_color"):
+        if not isinstance(p[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", p[key]):
+            raise ValueError("Colors must be six-digit hex values.")
     for key, (low, high) in LIMITS.items():
         value = p[key]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be between {low} and {high} mm (spacing is a multiplier).")
+    if p["style"] == "contour" and p["margin"] <= p["wall"] + p["clearance"]:
+        raise ValueError("Contour margin must exceed wall thickness plus clearance to preserve the lettering.")
     if p["ledge"] <= p["clearance"]:
         raise ValueError("Support ledge must be wider than face clearance.")
     if p["depth"] - p["recess"] - p["face"] <= p["back"] + 2:
@@ -112,7 +117,7 @@ def build(p):
         scad = folder / "sign.scad"
         scad.write_text(source(p))
         info = {}
-        for part in ("body", "diffuser", "fit_body", "fit_diffuser"):
+        for part in (("body", "diffuser", "fit_body", "fit_diffuser") + (("text_region", "border_region") if p["style"] == "contour" else ())):
             render(scad, folder/f"{part}.stl", part)
             info[part] = mesh_info(folder/f"{part}.stl")
         render(scad, folder/"diffuser.svg", "cutting")
@@ -141,6 +146,13 @@ Font: {p['font_name']} (install the same font to regenerate sign.scad)
 Body dimensions: {' × '.join(map(str,info['body']['size']))} mm
 Depth: {p['depth']} mm; face: {p['face']} mm; recess: {p['recess']} mm
 Wall: {p['wall']} mm; back: {p['back']} mm; per-side clearance: {p['clearance']} mm
+
+For contour signs, text_region.stl and border_region.stl are complementary
+full-thickness face regions, including enclosed letter counters. Import together
+as parts of one object; do not arrange them separately. Print as one multi-material
+face. diffuser.stl is the single-color combined fallback. Use the app's colored
+3MF download to retain alignment and named color regions. Assign filaments in
+your slicer as needed; 3MF colors are not printer-specific AMS assignments.
 
 1. Print fit_body.stl and fit_diffuser.stl; test fit before the full sign.
 2. Print body.stl back-down (Z=0). Separate letters are disconnected shells;
@@ -189,12 +201,12 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/api/config":
             self.send(dict(defaults=DEFAULTS, fonts=fonts(), openscad=bool(shutil.which(OPENSCAD))))
-        elif re.fullmatch(r"/build/[a-f0-9]{32}/(body.stl|diffuser.stl|fit_body.stl|fit_diffuser.stl|diffuser.svg|sign.scad|project.json|print-kit.zip)", path):
+        elif re.fullmatch(r"/build/[a-f0-9]{32}/(body.stl|diffuser.stl|text_region.stl|border_region.stl|fit_body.stl|fit_diffuser.stl|diffuser.svg|sign.scad|project.json|print-kit.zip)", path):
             file = Path(CACHE.name) / path.removeprefix("/build/")
             if file.is_file():
                 self.send(file.read_bytes(), mime=mimetypes.guess_type(file.name)[0] or "application/octet-stream")
             else: self.send({"error":"Build expired. Generate again."},404)
-        elif path in ("/", "/index.html", "/style.css", "/app.js", "/viewer.js", "/backend.js", "/model.js"):
+        elif path in ("/", "/index.html", "/style.css", "/app.js", "/viewer.js", "/backend.js", "/model.js", "/three-mf.js"):
             file = ROOT / "web" / ("index.html" if path == "/" else path[1:])
             self.send(file.read_bytes(), mime=mimetypes.guess_type(file.name)[0] or "text/plain")
         else: self.send({"error":"Not found"},404)

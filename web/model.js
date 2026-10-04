@@ -8,6 +8,8 @@ export function validate(raw, config) {
   if(!config.fonts.includes(p.font_name))throw new Error('This font is not included in the browser edition. Choose a DejaVu font.');
   if(!['letters','contour'].includes(p.style))throw new Error('Choose a valid sign style.');
   for(const [key,[min,max]] of Object.entries(config.limits))if(typeof p[key]!=='number'||!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`${key} must be between ${min} and ${max}.`);
+  for(const key of ['body_color','text_color','border_color'])if(typeof p[key]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(p[key]))throw new Error('Colors must be six-digit hex values.');
+  if(p.style==='contour'&&p.margin<=p.wall+p.clearance)throw new Error('Contour margin must exceed wall thickness plus clearance to preserve the lettering.');
   if(p.ledge<=p.clearance)throw new Error('Support ledge must exceed clearance.');
   if(p.depth-p.recess-p.face<=p.back+2)throw new Error('Increase depth to leave more than 2 mm for LEDs.');
   return p;

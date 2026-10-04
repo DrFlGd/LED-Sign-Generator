@@ -18,8 +18,12 @@ face = 1.2;
 clearance = 0.2; // Per-side XY clearance.
 ledge = 1.2;
 recess = 0;
+/* [Colors] */
+body_color = "#294650";
+text_color = "#ffe4a6";
+border_color = "#294650";
 /* [Output] */
-part = "assembly"; // [assembly,body,diffuser,cutting,fit_body,fit_diffuser]
+part = "assembly"; // [assembly,body,diffuser,text_region,border_region,cutting,fit_body,fit_diffuser]
 explode = 0;
 /* [Hidden] */
 $fn = 48;
@@ -52,14 +56,28 @@ module shell(total_depth=depth, seat=seat_z) {
 module diffuser2d() { offset(delta=-wall-clearance) outline(); }
 module body() { shell() outline(); }
 module diffuser() { linear_extrude(face) diffuser2d(); }
+// Complementary regions share boundaries, with no overlapping volume or fit gap.
+// Print them together as a multi-material face; counters belong to the border.
+module text_region2d() {
+    if (style == "contour") intersection() { diffuser2d(); artwork(); }
+    else diffuser2d();
+}
+module border_region2d() { difference() { diffuser2d(); artwork(); } }
+module text_region() { linear_extrude(face) text_region2d(); }
+module border_region() { linear_extrude(face) border_region2d(); }
 module coupon() { square([30,30], center=true); }
 if (part == "body") body();
 else if (part == "diffuser") diffuser();
+else if (part == "text_region") text_region();
+else if (part == "border_region") border_region();
 else if (part == "cutting") diffuser2d();
 else if (part == "fit_body") shell(back+face+5,back+5) coupon();
 else if (part == "fit_diffuser") linear_extrude(face)
     offset(delta=-wall-clearance) coupon();
 else if (part == "assembly") {
-    color("#253b47") body();
-    color("#ffda85") translate([0,0,seat_z+explode]) diffuser();
+    color(body_color) body();
+    translate([0,0,seat_z+explode]) {
+        color(text_color) text_region();
+        if (style == "contour") color(border_color) border_region();
+    }
 } else assert(false, "Unknown part");

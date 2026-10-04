@@ -44,7 +44,7 @@ On Debian/Ubuntu, the system packages are `openscad` and `fonts-dejavu-core`. Fo
 ## First build
 
 1. Start with `GLOW`, a bold font and 80 mm artwork height.
-2. Select **separate letters**, or **convex contour enclosure** for one convex outer outline around the word. The latter is not a tight concave contour and does not expose text-shaped windows: it creates a plain convex diffuser.
+2. Select **separate letters**, or **convex contour enclosure** for one convex outer outline around the word. The latter is not a tight concave contour and does not expose text-shaped windows: it creates a convex face with separate text and background color regions.
 3. Set total depth, wall/back thickness, diffuser thickness, clearance, ledge and recess.
 4. Click **Generate lightbox**. The app renders with OpenSCAD; no approximate browser geometry is substituted. Rotate with drag or arrow keys, zoom with scroll or +/−, choose front/rear, hide parts, or explode the assembly.
 5. Download the print kit. Print the fit coupon first, then inspect the full meshes in your slicer.
@@ -81,7 +81,7 @@ The default 0.20 mm clearance is a starting point, not a calibrated fit guarante
 
 Implemented: installed font selection, separate letters, convex enclosure, exact rendered dimensions, inset printed/cut diffuser, wall/back/ledge/clearance/recess controls, fit coupons, STL/SVG/SCAD kit, mesh-based 3D/front/rear/exploded preview, part visibility, preview colors, project save/open and last-build restore.
 
-Next: font upload/portable font outlines, joined letters and shared backings, tight/rectangular contour boxes, wire holes and passage diagnostics, mounting features, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
+Next: font upload/portable font outlines, joined letters and shared backings, tight/rectangular contour boxes, wire holes and passage diagnostics, mounting features, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu printer-project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
 
 ## Development and verification
 
@@ -94,3 +94,11 @@ Geometry tests invoke real OpenSCAD to check closed edges, positive volume, coun
 The server uses Python's standard library, binds only to loopback, checks Host/Origin, limits request size and rendering concurrency, passes arguments without a shell, and times out each render after 120 seconds. It is **not a public hosting service**. Recent builds live in temporary storage (up to 12) and disappear when the server exits; save your kit/project downloads. Host/Origin checks intentionally prevent remote proxy access.
 
 Initial validation: 9 automated checks passed with OpenSCAD 2021.01. JavaScript syntax checks passed. A live visual browser check could not be completed in the implementation environment because browser access timed out; perform a browser smoke test locally before relying on the interface.
+
+## Multicolor contour faces and 3MF
+
+Contour faces now contain separate **Text** and **Border / background** regions, including letter counters. They are complementary full-thickness solids with no overlapping volume or clearance gap: print them together as one multicolor face. Choose a translucent material for the text and opaque material for the border to make the lettering light up. This is not a loose press-fit lettering kit.
+
+The Body, Text / diffuser and Border color controls affect both the preview and the **Download colored 3MF** button. Colors are preserved in saved projects; old projects receive default colors. The 3MF contains named parts and base-material color metadata, with the face regions grouped and aligned on Z=0. The body is a separate object beside the face. Arrange those two objects for your printer; keep the face's text and border together.
+
+This is standard 3MF, not a Bambu Studio printer project. Slicers may ask you to assign each named part to an actual filament/AMS slot. Color metadata does not select printer-specific filaments. The ZIP also includes aligned `text_region.stl` and `border_region.stl`; import both as parts of the same object. `diffuser.stl` and `diffuser.svg` remain the full single-color face/cutting outline. A contour margin must exceed wall thickness plus face clearance to avoid clipping the lettering.

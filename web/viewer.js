@@ -12,7 +12,7 @@ export class Viewer {
     this.program=gl.createProgram();gl.attachShader(this.program,vs);gl.attachShader(this.program,fs);gl.linkProgram(this.program);
     if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw new Error('Could not initialize preview.');
     this.uniforms=Object.fromEntries(['center','scale','aspect','angle','lift','color'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
-    this.meshes=[];this.angle=[-.6,-.12];this.zoom=1;this.options={body:true,face:true,bodyColor:'#294650',faceColor:'#ffe4a6',explode:false};
+    this.meshes=[];this.angle=[-.6,-.12];this.zoom=1;this.options={body:true,face:true,bodyColor:'#294650',faceColor:'#ffe4a6',borderColor:'#294650',explode:false};
     let last=null;
     canvas.addEventListener('pointerdown',e=>{last=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);});
     canvas.addEventListener('pointermove',e=>{if(last){this.angle[1]+=(e.clientX-last[0])*.008;this.angle[0]+=(e.clientY-last[1])*.008;last=[e.clientX,e.clientY];this.draw();}});
@@ -45,7 +45,7 @@ export class Viewer {
       if(!(i===0?this.options.body:this.options.face))return;
       gl.bindBuffer(gl.ARRAY_BUFFER,m.buffer);
       for(const [name,offset]of [['position',0],['normal',12]]){const a=gl.getAttribLocation(this.program,name);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,24,offset);}
-      const hex=i===0?this.options.bodyColor:this.options.faceColor;
+      const hex=i===0?this.options.bodyColor:i===1?this.options.faceColor:this.options.borderColor;
       gl.uniform3fv(u.color,[1,3,5].map(j=>parseInt(hex.slice(j,j+2),16)/255));gl.uniform1f(u.lift,i===0?0:this.result.seat+extra);gl.drawArrays(gl.TRIANGLES,0,m.count);
     });
   }
