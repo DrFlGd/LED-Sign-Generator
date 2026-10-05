@@ -22,10 +22,10 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULTS = dict(sign_text="GLOW", font_name="DejaVu Sans:style=Bold", height=80,
                 spacing=1.05, style="letters", margin=6, depth=30, wall=1.6,
-                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0, body_color="#294650", text_color="#ffe4a6", border_color="#294650")
+                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0, body_color="#294650", text_color="#ffe4a6", border_color="#294650", wire_exit="none", wire_diameter=5, wire_x=0, wire_y=0, cable_channel="none", channel_y=0)
 LIMITS = dict(height=(20,300), spacing=(0.7,2), margin=(2,30), depth=(8,150),
               wall=(0.8,6), back=(0.8,6), face=(0.5,5), clearance=(0,1),
-              ledge=(0.5,5), recess=(0,15))
+              ledge=(0.5,5), recess=(0,15), wire_diameter=(2,12), wire_x=(-5000,5000), wire_y=(-300,300), channel_y=(-300,300))
 OPENSCAD = os.environ.get("OPENSCAD", "openscad")
 BUILD_LOCK = threading.Lock()
 CACHE = tempfile.TemporaryDirectory(prefix="led-sign-")
@@ -59,8 +59,8 @@ def validate(raw):
         raise ValueError("Use a single line of text without control characters.")
     if not isinstance(p["font_name"], str) or p["font_name"] not in fonts():
         raise ValueError("Choose an installed font. Install custom fonts on your computer, then restart.")
-    if p["style"] not in ("letters", "contour"):
-        raise ValueError("Choose separate letters or convex contour.")
+    if p["style"] not in ("letters", "contour", "outline", "rectangle"):
+        raise ValueError("Choose a valid sign style.")
     for key in ("body_color", "text_color", "border_color"):
         if not isinstance(p[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", p[key]):
             raise ValueError("Colors must be six-digit hex values.")
@@ -68,12 +68,16 @@ def validate(raw):
         value = p[key]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be between {low} and {high} mm (spacing is a multiplier).")
-    if p["style"] == "contour" and p["margin"] <= p["wall"] + p["clearance"]:
+    if p["style"] != "letters" and p["margin"] <= p["wall"] + p["clearance"]:
         raise ValueError("Contour margin must exceed wall thickness plus clearance to preserve the lettering.")
     if p["ledge"] <= p["clearance"]:
         raise ValueError("Support ledge must be wider than face clearance.")
     if p["depth"] - p["recess"] - p["face"] <= p["back"] + 2:
         raise ValueError("Increase depth: the LED cavity needs more than 2 mm above the back.")
+    if p["wire_exit"] not in ("none", "rear") or p["cable_channel"] not in ("none", "horizontal"):
+        raise ValueError("Choose valid wiring options.")
+    if p["cable_channel"] == "horizontal" and p["back"] + p["wire_diameter"] + 0.6 >= p["depth"] - p["recess"] - p["face"]:
+        raise ValueError("Increase depth or reduce wire diameter to fit the channel below the ledge.")
     return p
 
 def project(p):
@@ -117,7 +121,7 @@ def build(p):
         scad = folder / "sign.scad"
         scad.write_text(source(p))
         info = {}
-        for part in (("body", "diffuser", "fit_body", "fit_diffuser") + (("text_region", "border_region") if p["style"] == "contour" else ())):
+        for part in (("body", "diffuser", "fit_body", "fit_diffuser") + (("text_region", "border_region") if p["style"] != "letters" else ())):
             render(scad, folder/f"{part}.stl", part)
             info[part] = mesh_info(folder/f"{part}.stl")
         render(scad, folder/"diffuser.svg", "cutting")
@@ -134,7 +138,7 @@ def build(p):
         return dict(id=token, parts=info, settings=p, seat=p["depth"]-p["recess"]-p["face"],
                     warnings=["Thin strokes, tiny islands and narrow LED cavities require inspection in your slicer.",
                               "Print the fit coupon first; the default clearance is a starting point.",
-                              "Wire passages and mounting holes are not included in this version."])
+                              "Inspect rear hole placement: holes outside the body or within a counter may miss the cavity. Horizontal passages open both sides; they do not bridge separate letters."])
     except Exception:
         shutil.rmtree(folder, ignore_errors=True)
         raise
@@ -147,7 +151,7 @@ Body dimensions: {' × '.join(map(str,info['body']['size']))} mm
 Depth: {p['depth']} mm; face: {p['face']} mm; recess: {p['recess']} mm
 Wall: {p['wall']} mm; back: {p['back']} mm; per-side clearance: {p['clearance']} mm
 
-For contour signs, text_region.stl and border_region.stl are complementary
+For enclosure styles, text_region.stl and border_region.stl are complementary
 full-thickness face regions, including enclosed letter counters. Import together
 as parts of one object; do not arrange them separately. Print as one multi-material
 face. diffuser.stl is the single-color combined fallback. Use the app's colored
@@ -162,7 +166,11 @@ your slicer as needed; 3MF colors are not printer-specific AMS assignments.
    no kerf compensation is applied. Confirm scale in your cutting software.
 4. Inspect thin strokes, counters and LED space. No automatic printability
    certification is performed. The ledge reduces the lower cavity width.
-5. Plan wire exits and mounting before printing; these are not generated yet.
+5. Rear exit: {p['wire_exit']}, diameter {p['wire_diameter']} mm, X/Y {p['wire_x']}/{p['wire_y']} mm.
+   Channel: {p['cable_channel']}, Y {p['channel_y']} mm. Inspect placement from rear.
+   Rear holes must land inside an LED cavity. Horizontal passages cross all walls
+   and open both exterior sides; gaps between letters require external wire.
+   Mounting holes are not generated.
 6. Install appropriate low-voltage LEDs, test illumination, then seat the face.
    The face rests on a ledge; this is a clearance fit, not a snap-lock. Secure
    with a suitable removable adhesive if needed. Fit and heat behavior depend

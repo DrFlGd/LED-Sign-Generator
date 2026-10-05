@@ -6,12 +6,14 @@ export function validate(raw, config) {
   const p={...config.defaults,...raw};
   if(typeof p.sign_text!=='string'||!p.sign_text.trim()||p.sign_text.length>24||/[\x00-\x1f]/.test(p.sign_text))throw new Error('Enter 1–24 characters on a single line.');
   if(!config.fonts.includes(p.font_name))throw new Error('This font is not included in the browser edition. Choose a DejaVu font.');
-  if(!['letters','contour'].includes(p.style))throw new Error('Choose a valid sign style.');
+  if(!['letters','contour','outline','rectangle'].includes(p.style))throw new Error('Choose a valid sign style.');
   for(const [key,[min,max]] of Object.entries(config.limits))if(typeof p[key]!=='number'||!Number.isFinite(p[key])||p[key]<min||p[key]>max)throw new Error(`${key} must be between ${min} and ${max}.`);
   for(const key of ['body_color','text_color','border_color'])if(typeof p[key]!=='string'||!/^#[0-9a-fA-F]{6}$/.test(p[key]))throw new Error('Colors must be six-digit hex values.');
-  if(p.style==='contour'&&p.margin<=p.wall+p.clearance)throw new Error('Contour margin must exceed wall thickness plus clearance to preserve the lettering.');
+  if(p.style!=='letters'&&p.margin<=p.wall+p.clearance)throw new Error('Contour margin must exceed wall thickness plus clearance to preserve the lettering.');
   if(p.ledge<=p.clearance)throw new Error('Support ledge must exceed clearance.');
   if(p.depth-p.recess-p.face<=p.back+2)throw new Error('Increase depth to leave more than 2 mm for LEDs.');
+  if(!['none','rear'].includes(p.wire_exit)||!['none','horizontal'].includes(p.cable_channel))throw new Error('Choose valid wiring options.');
+  if(p.cable_channel==='horizontal'&&p.back+p.wire_diameter+0.6>=p.depth-p.recess-p.face)throw new Error('Increase depth or reduce wire diameter to fit the channel below the ledge.');
   return p;
 }
 export function makeSource(template,p){for(const [key,value]of Object.entries(p))template=template.replace(new RegExp(`^${key} = .*?;`,'m'),()=>`${key} = ${JSON.stringify(value)};`);return template;}

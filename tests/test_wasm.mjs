@@ -51,3 +51,28 @@ assert.throws(()=>validate({...cp,text_color:'red'},config));
 fs.mkdirSync(new URL('../.test-output/',import.meta.url),{recursive:true});
 fs.writeFileSync(new URL('../.test-output/contour-colored.3mf',import.meta.url),archive);
 console.log('Contour split volume, watertight meshes, preserved counters, material colors and grouped 3MF passed.');
+
+// New enclosures retain complementary color regions; wiring only removes body material.
+for(const style of ['outline','rectangle']){
+ const settings=validate({...cp,style},config), src=makeSource(template,settings), meshes={};
+ for(const part of ['body','diffuser','text_region','border_region'])meshes[part]=await renderPart({source:src,fontBytes,fontFile,part});
+ const plainVolume=volume(meshes.body);
+ assert.ok(Math.abs(volume(meshes.diffuser)-volume(meshes.text_region)-volume(meshes.border_region))<.15);
+ const info=meshInfo(meshes.body);
+ if(style==='rectangle')assert.ok(Math.abs(info.size[1]-72)<.01,'Rectangular glyph bounds plus margin');
+ const colored=unzipSync(make3MF(['body','text_region','border_region'].map(k=>meshes[k]),{settings,parts:{body:info}},settings));
+ assert.ok(new TextDecoder().decode(colored['3D/3dmodel.model']).includes('<component objectid="4"/>'));
+ const wired=validate({...settings,wire_exit:'rear',cable_channel:'horizontal'},config);
+ const body=await renderPart({source:makeSource(template,wired),fontBytes,fontFile,part:'body'});
+ assert.ok(volume(body)<plainVolume-10,'Wiring removes body material');
+ assert.deepEqual(meshInfo(body).size,info.size,'Wiring preserves envelope');
+ if(style==='rectangle'){
+  const rear=await renderPart({source:makeSource(template,{...settings,wire_exit:'rear'}),fontBytes,fontFile,part:'body'});
+  const expected=48/2*(settings.wire_diameter/2)**2*Math.sin(2*Math.PI/48)*settings.back;
+  assert.ok(Math.abs(plainVolume-volume(rear)-expected)<.1,'Rear bore removes exactly the back thickness');
+ }
+ console.log(style,'color regions, manifold wired body, preserved dimensions and 3MF passed');
+}
+assert.throws(()=>validate({...cp,cable_channel:'horizontal',depth:8,wire_diameter:8},config));
+assert.throws(()=>validate({...cp,wire_exit:'unknown'},config));
+assert.throws(()=>validate({...cp,wire_diameter:0},config));

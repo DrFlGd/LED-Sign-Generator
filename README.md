@@ -79,9 +79,9 @@ The default 0.20 mm clearance is a starting point, not a calibrated fit guarante
 
 ## Scope and next milestones
 
-Implemented: installed font selection, separate letters, convex enclosure, exact rendered dimensions, inset printed/cut diffuser, wall/back/ledge/clearance/recess controls, fit coupons, STL/SVG/SCAD kit, mesh-based 3D/front/rear/exploded preview, part visibility, preview colors, project save/open and last-build restore.
+Implemented: installed font selection, separate letters, convex/close/rectangular enclosures, rear wire holes and horizontal passages, exact rendered dimensions, inset printed/cut diffuser, wall/back/ledge/clearance/recess controls, fit coupons, STL/SVG/SCAD kit, mesh-based 3D/front/rear/exploded preview, part visibility, preview colors, project save/open and last-build restore.
 
-Next: font upload/portable font outlines, joined letters and shared backings, tight/rectangular contour boxes, wire holes and passage diagnostics, mounting features, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu printer-project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
+Next: font upload/portable font outlines, joined letters and shared backings, automatic wire routing and passage diagnostics, mounting features, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu printer-project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
 
 ## Development and verification
 
@@ -102,3 +102,12 @@ Contour faces now contain separate **Text** and **Border / background** regions,
 The Body, Text / diffuser and Border color controls affect both the preview and the **Download colored 3MF** button. Colors are preserved in saved projects; old projects receive default colors. The 3MF contains named parts and base-material color metadata, with the face regions grouped and aligned on Z=0. The body is a separate object beside the face. Arrange those two objects for your printer; keep the face's text and border together.
 
 This is standard 3MF, not a Bambu Studio printer project. Slicers may ask you to assign each named part to an actual filament/AMS slot. Color metadata does not select printer-specific filaments. The ZIP also includes aligned `text_region.stl` and `border_region.stl`; import both as parts of the same object. `diffuser.stl` and `diffuser.svg` remain the full single-color face/cutting outline. A contour margin must exceed wall thickness plus face clearance to avoid clipping the lettering.
+
+
+### More enclosures and wiring
+
+Styles now include separate letters, convex contour, **close contour**, and **rectangular lightbox**. Close contour offsets the artwork and smooths small gaps; disconnected letters may remain separate if the enclosure margin is too small. Increase margin or reduce spacing to join them. Rectangular bounds follow the actual glyph extents. All enclosure styles retain complementary text and border faces in the colored 3MF.
+
+Wiring is optional and disabled in existing projects by default. A rear hole cuts through the back at a specified X/Y coordinate. The horizontal cable passage is a round bore above the back, through each wall along its Y coordinate, including both exterior sides. It does not create a physical conduit across gaps between separate letters. Diameter is shared by the rear hole and passage. Validation keeps the passage below the face ledge.
+
+Coordinates use the OpenSCAD artwork origin (X right, Y up from the front), not a bounding-box corner. Hide the face and inspect the rear before printing: a rear hole outside the shape or inside a counter can miss the cavity. Wiring controls do not auto-route, check LED collisions, or certify cable clearance. Mounting is not yet included.

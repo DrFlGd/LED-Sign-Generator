@@ -29,7 +29,7 @@ export function stlMesh(bytes){
  }return {vertices,triangles};
 }
 export function make3MF(buffers,result,colors){
- const contour=result.settings.style==='contour';
+ const contour=result.settings.style!=='letters';
  if(buffers.length!==(contour?3:2))throw new Error('Missing color-region meshes.');
  const names=['Body',contour?'Text — translucent':'Diffuser — translucent','Border / background — opaque'];
  const palette=[colors.body_color,colors.text_color,colors.border_color];

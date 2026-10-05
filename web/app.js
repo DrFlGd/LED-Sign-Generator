@@ -8,7 +8,7 @@ window.addEventListener('render-progress',e=>message(e.detail));
 const message=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error);};
 async function api(path,data){const r=await transportFetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!r.ok){const e=await r.json();throw new Error(e.error||'Request failed');}return r;}
 function settings(){return Object.fromEntries(keys.map(k=>[k,typeof defaults[k]==='number'?Number(document.querySelector(`[name="${k}"]`).value):document.querySelector(`[name="${k}"]`).value]));}
-function refreshStyle(){ $('margin-field').hidden=form.elements.style.value!=='contour'; }
+function refreshStyle(){ $('margin-field').hidden=form.elements.style.value==='letters'; }
 function fill(p){for(const k of keys)document.querySelector(`[name="${k}"]`).value=p[k];refreshStyle();if(viewer){Object.assign(viewer.options,{bodyColor:p.body_color,faceColor:p.text_color,borderColor:p.border_color});viewer.draw();}}
 function dirty(){revision++;current=null;$('download').disabled=true;$('download-3mf').disabled=true;$('badge').textContent='CHANGES NOT BUILT';message('Settings changed. Generate again to update the preview and print files.');refreshStyle();}
 function download(data,name,type='application/json'){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -21,7 +21,7 @@ form.addEventListener('submit',async e=>{
   try{
     const result=await (await api('/api/build',p)).json();
     if(version!==revision){message('Settings changed during rendering. Generate again to build your latest design.');$('badge').textContent='CHANGES NOT BUILT';return;}
-    if(viewer){const buffers=await Promise.all((p.style==='contour'?['body','text_region','border_region']:['body','diffuser']).map(async part=>{const r=await transportFetch(`/build/${result.id}/${part}.stl`);if(!r.ok)throw new Error('Could not load preview mesh.');return r.arrayBuffer();}));
+    if(viewer){const buffers=await Promise.all((p.style!=='letters'?['body','text_region','border_region']:['body','diffuser']).map(async part=>{const r=await transportFetch(`/build/${result.id}/${part}.stl`);if(!r.ok)throw new Error('Could not load preview mesh.');return r.arrayBuffer();}));
       if(version!==revision){message('Settings changed during rendering. Generate again.');$('badge').textContent='CHANGES NOT BUILT';return;}
       viewer.setModel(buffers,result);$('empty').hidden=true;$('empty').style.display='none';
     }
@@ -35,7 +35,7 @@ form.addEventListener('submit',async e=>{
 });
 $('download').onclick=async()=>{if(current){try{const r=await transportFetch(`/build/${current.id}/print-kit.zip`);if(!r.ok)throw new Error('Build expired. Generate again.');download(await r.arrayBuffer(),'led-sign-print-kit.zip','application/zip');}catch(e){message(e.message,true);}}};
 $('download-3mf').onclick=async()=>{if(!current)return;try{
- const names=current.settings.style==='contour'?['body','text_region','border_region']:['body','diffuser'];
+ const names=current.settings.style!=='letters'?['body','text_region','border_region']:['body','diffuser'];
  const meshes=await Promise.all(names.map(async name=>{const r=await transportFetch(`/build/${current.id}/${name}.stl`);if(!r.ok)throw new Error('Build expired. Generate again.');return new Uint8Array(await r.arrayBuffer());}));
  download(make3MF(meshes,current,settings()),'led-sign-colored.3mf','model/3mf');
  }catch(e){message(e.message,true);}};
