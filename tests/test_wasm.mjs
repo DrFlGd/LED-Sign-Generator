@@ -76,3 +76,44 @@ for(const style of ['outline','rectangle']){
 assert.throws(()=>validate({...cp,cable_channel:'horizontal',depth:8,wire_diameter:8},config));
 assert.throws(()=>validate({...cp,wire_exit:'unknown'},config));
 assert.throws(()=>validate({...cp,wire_diameter:0},config));
+
+// Retention and mounts: test actual material changes, closure and fit dimensions.
+const rp=validate({...cp,style:'rectangle'},config);
+const renderSetting=async(settings,part='body')=>renderPart({source:makeSource(template,settings),fontBytes,fontFile,part});
+const baseline=await renderSetting(rp), baseVol=volume(baseline);
+const bounds=meshInfo(baseline), W=bounds.maximum[0]-bounds.minimum[0], H=bounds.maximum[1]-bounds.minimum[1], seat=rp.depth-rp.face-rp.recess;
+const expectedBox=W*H*rp.depth-(W-2*(rp.wall+rp.ledge))*(H-2*(rp.wall+rp.ledge))*(seat-rp.back)-(W-2*rp.wall)*(H-2*rp.wall)*(rp.depth-seat);
+assert.ok(Math.abs(baseVol-expectedBox)<.15,'Rectangle must have a continuous, unpartitioned cavity');
+for(const mount of ['screws','keyholes','adhesive']){
+ const mounted=await renderSetting({...rp,mount});
+ const removed=baseVol-volume(mounted);
+ assert.ok(removed>1);
+ if(mount==='adhesive')assert.ok(Math.abs(removed-2*rp.pad_size**2*rp.pad_depth)<.1,'Recess pocket volume');
+ if(mount==='screws')assert.ok(Math.abs(removed-2*48/2*(rp.screw_diameter/2)**2*Math.sin(2*Math.PI/48)*rp.back)<.1,`Two through-back screw holes: removed ${removed}, expected ${2*48/2*(rp.screw_diameter/2)**2*Math.sin(2*Math.PI/48)*rp.back}`);
+}
+for(const led_lip of ['sides','back','both']){
+ const retained=await renderSetting({...rp,led_lip});
+ assert.ok(volume(retained)>baseVol+10,'Retaining features add material');
+ assert.deepEqual(meshInfo(retained).size,meshInfo(baseline).size);
+}
+const combined=validate({...rp,mount:'keyholes',mount_y:16,led_lip:'both',fit_mode:'friction',wire_exit:'rear',wire_y:-18,cable_channel:'horizontal',channel_y:-18},config);
+volume(await renderSetting(combined));
+const coupon=await renderSetting(combined,'fit_diffuser');
+assert.ok(Math.abs(meshInfo(coupon).size[0]-(30-2*(rp.wall+rp.friction_clearance)))<.001);
+const glueFace=await renderSetting(rp,'diffuser'), frictionFace=await renderSetting(combined,'diffuser');
+assert.ok(Math.abs(meshInfo(frictionFace).size[0]-meshInfo(glueFace).size[0]-2*(rp.clearance-rp.friction_clearance))<.005);
+const jp=validate({...p,style:'joined',sign_text:'II',height:60,spacing:1,join_radius:12},config);
+const joined=await renderSetting(jp), separate=await renderSetting({...jp,style:'letters'});
+volume(joined);volume(separate);
+function components(bytes){
+ const {vertices,triangles}=stlMesh(bytes),parents=vertices.map((_,i)=>i);
+ const root=i=>{while(parents[i]!==i){parents[i]=parents[parents[i]];i=parents[i];}return i;};
+ for(const [a,b,c]of triangles){parents[root(b)]=root(a);parents[root(c)]=root(a);}
+ return new Set(vertices.map((_,i)=>root(i))).size;
+}
+assert.equal(components(separate),2);assert.equal(components(joined),1,'Joined letters must form one solid');
+const joinedFace=await renderSetting(jp,'diffuser');
+assert.ok(volume(joinedFace)>volume(await renderSetting({...jp,style:'letters'},'diffuser')),'Joining fills the face gaps');
+make3MF([joined,joinedFace],{settings:jp,parts:{body:meshInfo(joined)}},jp);
+for(const invalid of [{led_lip:'sides',depth:12},{mount:'adhesive',pad_depth:1.5},{mount:'keyholes',head_diameter:4,screw_diameter:4},{led_lip:'back',strip_width:4,lip_projection:3},{fit_mode:'unknown'}])assert.throws(()=>validate({...rp,...invalid},config));
+console.log('Mount removal, LED lip volumes, closed combined assembly, friction coupon sizing and connected joined letters passed.');

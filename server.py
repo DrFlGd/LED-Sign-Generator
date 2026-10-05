@@ -22,10 +22,10 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULTS = dict(sign_text="GLOW", font_name="DejaVu Sans:style=Bold", height=80,
                 spacing=1.05, style="letters", margin=6, depth=30, wall=1.6,
-                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0, body_color="#294650", text_color="#ffe4a6", border_color="#294650", wire_exit="none", wire_diameter=5, wire_x=0, wire_y=0, cable_channel="none", channel_y=0)
+                back=1.6, face=1.2, clearance=0.2, ledge=1.2, recess=0, body_color="#294650", text_color="#ffe4a6", border_color="#294650", wire_exit="none", wire_diameter=5, wire_x=0, wire_y=0, cable_channel="none", channel_y=0, join_radius=8, fit_mode='glue', friction_clearance=0.05, mount='none', mount_spacing=40, mount_y=0, screw_diameter=3.5, head_diameter=7, keyhole_travel=6, pad_size=16, pad_depth=0.5, led_lip='none', strip_width=8, strip_thickness=2, strip_clearance=0.5, lip_projection=1, lip_thickness=1.2, back_track_y=0)
 LIMITS = dict(height=(20,300), spacing=(0.7,2), margin=(2,30), depth=(8,150),
               wall=(0.8,6), back=(0.8,6), face=(0.5,5), clearance=(0,1),
-              ledge=(0.5,5), recess=(0,15), wire_diameter=(2,12), wire_x=(-5000,5000), wire_y=(-300,300), channel_y=(-300,300))
+              ledge=(0.5,5), recess=(0,15), wire_diameter=(2,12), wire_x=(-5000,5000), wire_y=(-300,300), channel_y=(-300,300), join_radius=(1, 30), friction_clearance=(0, 0.3), mount_spacing=(10, 1000), mount_y=(-300, 300), screw_diameter=(2, 8), head_diameter=(4, 16), keyhole_travel=(3, 15), pad_size=(6, 40), pad_depth=(0.2, 2), strip_width=(4, 20), strip_thickness=(0.5, 6), strip_clearance=(0.2, 2), lip_projection=(0.5, 3), lip_thickness=(0.8, 3), back_track_y=(-300, 300))
 OPENSCAD = os.environ.get("OPENSCAD", "openscad")
 BUILD_LOCK = threading.Lock()
 CACHE = tempfile.TemporaryDirectory(prefix="led-sign-")
@@ -59,7 +59,7 @@ def validate(raw):
         raise ValueError("Use a single line of text without control characters.")
     if not isinstance(p["font_name"], str) or p["font_name"] not in fonts():
         raise ValueError("Choose an installed font. Install custom fonts on your computer, then restart.")
-    if p["style"] not in ("letters", "contour", "outline", "rectangle"):
+    if p["style"] not in ("letters", "contour", "outline", "rectangle", "joined"):
         raise ValueError("Choose a valid sign style.")
     for key in ("body_color", "text_color", "border_color"):
         if not isinstance(p[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", p[key]):
@@ -68,9 +68,10 @@ def validate(raw):
         value = p[key]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
             raise ValueError(f"{key} must be between {low} and {high} mm (spacing is a multiplier).")
-    if p["style"] != "letters" and p["margin"] <= p["wall"] + p["clearance"]:
+    gap = p["friction_clearance"] if p["fit_mode"] == "friction" else p["clearance"]
+    if p["style"] not in ("letters", "joined") and p["margin"] <= p["wall"] + gap:
         raise ValueError("Contour margin must exceed wall thickness plus clearance to preserve the lettering.")
-    if p["ledge"] <= p["clearance"]:
+    if p["ledge"] <= gap:
         raise ValueError("Support ledge must be wider than face clearance.")
     if p["depth"] - p["recess"] - p["face"] <= p["back"] + 2:
         raise ValueError("Increase depth: the LED cavity needs more than 2 mm above the back.")
@@ -78,6 +79,18 @@ def validate(raw):
         raise ValueError("Choose valid wiring options.")
     if p["cable_channel"] == "horizontal" and p["back"] + p["wire_diameter"] + 0.6 >= p["depth"] - p["recess"] - p["face"]:
         raise ValueError("Increase depth or reduce wire diameter to fit the channel below the ledge.")
+    if p["fit_mode"] not in ("glue", "friction") or p["mount"] not in ("none", "screws", "keyholes", "adhesive") or p["led_lip"] not in ("none", "sides", "back", "both"):
+        raise ValueError("Choose valid fit, mounting and LED retention options.")
+    if p["mount"] == "adhesive" and p["pad_depth"] >= p["back"] - .6:
+        raise ValueError("Adhesive pockets must leave more than 0.6 mm of back material.")
+    if p["mount"] == "keyholes" and p["head_diameter"] <= p["screw_diameter"] + 1:
+        raise ValueError("Keyhole head opening must exceed screw diameter by more than 1 mm.")
+    seat = p["depth"] - p["recess"] - p["face"]
+    for mode,dimension in (("sides", "strip_width"), ("back", "strip_thickness")):
+        if p["led_lip"] in (mode,"both") and p["back"] + p[dimension] + p["strip_clearance"] + p["lip_thickness"] + 1 >= seat:
+            raise ValueError("Increase depth: LED retaining lips need 1 mm of clearance below the diffuser ledge.")
+    if p["led_lip"] != "none" and 2*p["lip_projection"] >= p["strip_width"]:
+        raise ValueError("Reduce lip projection to leave the LED strip exposed.")
     return p
 
 def project(p):
@@ -121,7 +134,7 @@ def build(p):
         scad = folder / "sign.scad"
         scad.write_text(source(p))
         info = {}
-        for part in (("body", "diffuser", "fit_body", "fit_diffuser") + (("text_region", "border_region") if p["style"] != "letters" else ())):
+        for part in (("body", "diffuser", "fit_body", "fit_diffuser") + (("text_region", "border_region") if p["style"] not in ("letters", "joined") else ())):
             render(scad, folder/f"{part}.stl", part)
             info[part] = mesh_info(folder/f"{part}.stl")
         render(scad, folder/"diffuser.svg", "cutting")
@@ -137,7 +150,7 @@ def build(p):
             shutil.rmtree(old)
         return dict(id=token, parts=info, settings=p, seat=p["depth"]-p["recess"]-p["face"],
                     warnings=["Thin strokes, tiny islands and narrow LED cavities require inspection in your slicer.",
-                              "Print the fit coupon first; the default clearance is a starting point.",
+                              "Print the fit coupon first. Inspect mounting and LED rail positions for conflicts with wiring and narrow cavities.",
                               "Inspect rear hole placement: holes outside the body or within a counter may miss the cavity. Horizontal passages open both sides; they do not bridge separate letters."])
     except Exception:
         shutil.rmtree(folder, ignore_errors=True)
@@ -149,7 +162,7 @@ Text: {p['sign_text']}
 Font: {p['font_name']} (install the same font to regenerate sign.scad)
 Body dimensions: {' × '.join(map(str,info['body']['size']))} mm
 Depth: {p['depth']} mm; face: {p['face']} mm; recess: {p['recess']} mm
-Wall: {p['wall']} mm; back: {p['back']} mm; per-side clearance: {p['clearance']} mm
+Wall: {p['wall']} mm; back: {p['back']} mm; fit: {p['fit_mode']}; per-side clearance: {p['friction_clearance'] if p['fit_mode']=='friction' else p['clearance']} mm
 
 For enclosure styles, text_region.stl and border_region.stl are complementary
 full-thickness face regions, including enclosed letter counters. Import together
@@ -170,10 +183,13 @@ your slicer as needed; 3MF colors are not printer-specific AMS assignments.
    Channel: {p['cable_channel']}, Y {p['channel_y']} mm. Inspect placement from rear.
    Rear holes must land inside an LED cavity. Horizontal passages cross all walls
    and open both exterior sides; gaps between letters require external wire.
-   Mounting holes are not generated.
+   Mount: {p['mount']}; spacing {p['mount_spacing']} mm; Y {p['mount_y']} mm.
+   Inspect mounts for solid back material and conflicts with LED rails/wiring.
+   LED lips: {p['led_lip']}; strip width/thickness {p['strip_width']}/{p['strip_thickness']} mm;
+   clearance {p['strip_clearance']} mm; overhang {p['lip_projection']} mm; back track Y {p['back_track_y']} mm.
 6. Install appropriate low-voltage LEDs, test illumination, then seat the face.
-   The face rests on a ledge; this is a clearance fit, not a snap-lock. Secure
-   with a suitable removable adhesive if needed. Fit and heat behavior depend
+   The face rests on a ledge. Friction mode uses its own clearance; test the
+   fit coupon. Adhesive mode needs suitable adhesive. Neither is a snap-lock. Fit and heat behavior depend
    on your printer, materials and LED choice.
 
 sign.scad is self-contained and editable in OpenSCAD. Choose body or diffuser

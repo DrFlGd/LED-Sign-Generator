@@ -39,7 +39,9 @@ class ValidationTests(unittest.TestCase):
         for p in [{'sign_text':' '},{'height':float('nan')},{'height':True},{'height':'80'},
                   {'depth':8,'face':5,'back':2},{'clearance':1,'ledge':.5},
                   {'style':'unknown'},{'unknown':1},{'version':2,'format':'led-sign-generator'},
-                  {'sign_text':'a\nb'},{'font_name':'not-installed'}]:
+                  {'sign_text':'a\nb'},{'font_name':'not-installed'},
+                  {'mount':'adhesive','pad_depth':1.5},{'led_lip':'sides','depth':12},
+                  {'led_lip':'back','strip_width':4,'lip_projection':3},{'fit_mode':'bad'}]:
             with self.subTest(p=p), self.assertRaises(ValueError): server.validate(p)
 
 @unittest.skipUnless(shutil.which(server.OPENSCAD),'OpenSCAD required')
@@ -67,6 +69,17 @@ class GeometryTests(unittest.TestCase):
                 path=folder/f'{part}.stl';server.render(scad,path,part);closed_and_volume(self,path)
             info=server.mesh_info(folder/'body.stl')
             self.assertAlmostEqual(info['size'][1],52,delta=.03)  # $fn polygon approximation
+
+    def test_mounting_led_retention_and_friction(self):
+        p=server.validate(dict(sign_text='BOi',style='rectangle',height=60,
+                              mount='keyholes',mount_y=16,led_lip='both',fit_mode='friction',
+                              wire_exit='rear',wire_y=-18,cable_channel='horizontal',channel_y=-18))
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp);scad=folder/'sign.scad';scad.write_text(server.source(p))
+            for part in ('body','fit_diffuser'):
+                path=folder/f'{part}.stl';server.render(scad,path,part);closed_and_volume(self,path)
+            self.assertAlmostEqual(server.mesh_info(folder/'fit_diffuser.stl')['size'][0],
+                                   30-2*(p['wall']+p['friction_clearance']),places=3)
 
     def test_wall_back_and_ledge_volume(self):
         # Coupon is a square, so the stepped shell has an analytic volume.

@@ -75,13 +75,13 @@ openscad -o face.stl -D 'part="diffuser"' scad/lightbox.scad
 
 The lower cavity is inset by `wall + ledge`; the upper face seat is inset by `wall`. The diffuser is inset by `wall + clearance`. Its assembled bottom is `depth - recess - face`. Clearance is **per side**, so a 0.20 mm setting produces 0.40 mm total clearance across a straight span. The face rests on a ledge; there are no snap tabs or retaining clips. Thin letters can lose diffuser regions or have unusably narrow cavities. A successful render is not printability certification. Review counters, islands and available LED space before manufacturing.
 
-The default 0.20 mm clearance is a starting point, not a calibrated fit guarantee. Use the coupon and adjust for your printer/material. Choose suitable low-voltage LEDs and account for their heat and required cavity size. Wiring, mounting and retention are manual in this milestone.
+The default 0.20 mm clearance is a starting point, not a calibrated fit guarantee. Use the coupon and adjust for your printer/material. Choose suitable low-voltage LEDs and account for their heat and required cavity size. Inspect mounting, wiring and LED retention against your actual hardware before printing.
 
 ## Scope and next milestones
 
 Implemented: installed font selection, separate letters, convex/close/rectangular enclosures, rear wire holes and horizontal passages, exact rendered dimensions, inset printed/cut diffuser, wall/back/ledge/clearance/recess controls, fit coupons, STL/SVG/SCAD kit, mesh-based 3D/front/rear/exploded preview, part visibility, preview colors, project save/open and last-build restore.
 
-Next: font upload/portable font outlines, joined letters and shared backings, automatic wire routing and passage diagnostics, mounting features, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu printer-project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
+Next: font upload/portable font outlines, shared backings, automatic wire routing and passage diagnostics, desk stands, more assembly styles, 3MF/plate arrangement, artwork import and canvas editing. No Bambu printer-project export, browser undo history, LED simulation, automatic narrow-stroke diagnostics, or print-volume splitting is claimed in this version.
 
 ## Development and verification
 
@@ -110,4 +110,17 @@ Styles now include separate letters, convex contour, **close contour**, and **re
 
 Wiring is optional and disabled in existing projects by default. A rear hole cuts through the back at a specified X/Y coordinate. The horizontal cable passage is a round bore above the back, through each wall along its Y coordinate, including both exterior sides. It does not create a physical conduit across gaps between separate letters. Diameter is shared by the rear hole and passage. Validation keeps the passage below the face ledge.
 
-Coordinates use the OpenSCAD artwork origin (X right, Y up from the front), not a bounding-box corner. Hide the face and inspect the rear before printing: a rear hole outside the shape or inside a counter can miss the cavity. Wiring controls do not auto-route, check LED collisions, or certify cable clearance. Mounting is not yet included.
+Coordinates use the OpenSCAD artwork origin (X right, Y up from the front), not a bounding-box corner. Hide the face and inspect the rear before printing: a rear hole outside the shape or inside a counter can miss the cavity. Wiring controls do not auto-route, check LED collisions, or certify cable clearance. Mounting controls include screw holes, keyholes and adhesive recesses.
+
+
+### Mounting, friction fits and LED retention
+
+**Joined letters** uses a closing operation controlled by Joining reach. This adds material across sufficiently small gaps; wider gaps and floating dots may stay disconnected, and counters can close. Preview your word and adjust reach/spacing. Joined style uses a single-color diffuser, while enclosure styles retain text/border color regions.
+
+Choose **ledge + adhesive clearance** or **friction fit**. Friction mode uses its own per-side clearance (default 0.05 mm); both the full face and fit coupon use that value. This is a calibrated close fit, not a snap-lock or a guaranteed press fit for every printer/material. Print the coupon first. The support ledge is retained in both modes.
+
+Two mounting locations sit at X = ± half Mount center spacing and the selected Mount Y. Screw holes and keyholes cut through the back; keyholes have an upper shaft slot so the sign slides downward onto installed screw heads. Adhesive recesses are cut into the rear surface and leave at least 0.6 mm back material. Place mounts in solid back areas, clear of LED rails and wiring; there is no automatic mount placement or load certification. No desk stand is included.
+
+Optional **side-wall lips** project into the cavity just above the specified strip width plus clearance measured from the back. The back is the lower stop; flex a strip underneath the upper lip. **Back rails** form a straight track along X at the selected Y, with two overhanging edge lips. Track width is strip width + clearance; vertical space is strip thickness + clearance. Measure strips including LEDs, components and any sleeve. Lips fuse into the body and export in STL/3MF. The rear face remains flat except for mounting recesses/holes.
+
+Wiring bores are cut after the rails/lips are added so passages remain open. Rails clip to the cavity outline; narrow lettering can truncate them. Depth validation reserves 1 mm below the diffuser ledge, but does not check arbitrary XY collisions, mounting placement or strip bend radius. Inspect the body with the face hidden, and test retention before a full print. New controls default off when opening older projects.
